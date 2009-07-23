@@ -19,6 +19,11 @@ module RailsGuides
 
     def generate
       guides = Dir.entries(view_path).find_all {|g| g =~ /textile$/ }
+      translated_dirs = Dir.entries(view_path).find_all{|d| d =~ /^\w+-\w+$/ }
+      translated_dirs.each do |d|
+        translated_guides = Dir.entries(view_path+"/"+d).find_all{|g| g =~ /textile$/ }.collect{|g| "#{d}/#{g}" }
+        guides += translated_guides
+      end
 
       if ENV["ONLY"]
         only = ENV["ONLY"].split(",").map{|x| x.strip }.map {|o| "#{o}.textile" }
@@ -33,6 +38,10 @@ module RailsGuides
       # Copy images and css files to html directory
       FileUtils.cp_r File.join(guides_dir, 'images'), File.join(output, 'images')
       FileUtils.cp_r File.join(guides_dir, 'files'), File.join(output, 'files')
+      translated_dirs.each do |d|
+        FileUtils.ln_s(File.join('..', 'images'), File.join(output, d, 'images'))
+        FileUtils.ln_s(File.join('..', 'files'),  File.join(output, d, 'files'))
+      end
     end
 
     def generate_guide(guide)
@@ -42,6 +51,10 @@ module RailsGuides
       puts "Generating #{name}"
 
       file = File.join(output, "#{name}.html")
+      require "pathname"
+      unless (d=Pathname(file).parent).exist?
+        d.mkpath
+      end
       File.open(file, 'w') do |f|
         @view = ActionView::Base.new(view_path)
         @view.extend(Helpers)
